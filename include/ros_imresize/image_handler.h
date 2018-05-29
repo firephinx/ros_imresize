@@ -19,13 +19,13 @@
 #include <image_transport/image_transport.h>
 
 
-class SingleImageHandler
+class ImageHandler
 {
 
 public:
 
-    SingleImageHandler();
-    ~SingleImageHandler();
+    ImageHandler();
+    ~ImageHandler();
 
     bool isImageReceived();
 
@@ -49,7 +49,6 @@ protected:
     cv::Mat _dist;
 
     bool _infoReceived;
-    bool _undistord;
 
     int _width;
     int _height;

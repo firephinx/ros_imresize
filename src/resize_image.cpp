@@ -13,7 +13,7 @@ int main( int argc, char** argv )
 {
     ros::init(argc, argv, "ros_imresize");
 
-    SingleImageHandler resize;
+    ImageHandler resize;
 
     ros::spin();
 

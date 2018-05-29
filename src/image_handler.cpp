@@ -14,41 +14,41 @@
 
 ////////////////////////////////////////////////////////////////////////////
 ////////////                                                    ////////////
-////////////                   SingleImageHandler               ////////////
+////////////                    ImageHandler                    ////////////
 ////////////                                                    ////////////
 ////////////////////////////////////////////////////////////////////////////
 
 
-SingleImageHandler::SingleImageHandler() :
+ImageHandler::ImageHandler() :
 _infoReceived(false),
 _nh("/ros_imresize"),
 _width(0),
 _height(0),
 _it(_nh)
 {
-    std::string imgTopicName;
-    std::string infoTopicName;
+    std::string inputCameraTopicName;
+    std::string inputCameraInfoTopicName;
+    std::string outputCameraTopicName;
+    std::string outputCameraInfoTopicName;
 
-    ros::Rate wrait(10);
+    ros::Rate rate(10);
 
     ROS_INFO("Retrieving parameters ...");
 
-    while(!(_nh.getParam("topic_crop", imgTopicName) &&
-          _nh.getParam("camera_info", infoTopicName)) &&
-	  ros::ok())
+    while(!(_nh.getParam("input_camera_topic", inputCameraTopicName) && _nh.getParam("input_camera_info_topic", inputCameraInfoTopicName) && 
+            _nh.getParam("output_camera_topic", outputCameraTopicName) && _nh.getParam("output_camera_info_topic", outputCameraInfoTopicName)) && 
+            ros::ok())
     {
-	ros::spinOnce();
-	wrait.sleep();
+    	ros::spinOnce();
+    	rate.sleep();
     }
 
     ROS_INFO("Parameters retrieved ...");
 
-    _nh.param("resize_width", _width, (int)640);
-    _nh.param("resize_height", _height, (int)480);
+    _nh.param("width", _width, (int)640);
+    _nh.param("height", _height, (int)480);
 
-    _nh.param("undistord", _undistord, false);
-
-    ros::Subscriber sub_info = _nh.subscribe(infoTopicName, 1, &SingleImageHandler::setCameraInfo, this);
+    ros::Subscriber sub_info = _nh.subscribe(inputCameraInfoTopicName, 1, &ImageHandler::setCameraInfo, this);
 
     ROS_INFO("WAITING for ROS camera calibration!\n");
     ros::Rate rate(10);
@@ -61,43 +61,34 @@ _it(_nh)
 
     sub_info.shutdown();
 
-    _sub_img = _it.subscribe(imgTopicName, 1, &SingleImageHandler::topicCallback, this);
+    _sub_img = _it.subscribe(inputCameraTopicName, 1, &ImageHandler::topicCallback, this);
 
-    _pub_img = _it.advertise(imgTopicName + "_crop", 1);
+    _pub_img = _it.advertise(inputCameraTopicName + "_resized", 1);
 
-    _pub_info = _nh.advertise<sensor_msgs::CameraInfo>(infoTopicName + "_crop", 1);
+    _pub_info = _nh.advertise<sensor_msgs::CameraInfo>(inputCameraInfoTopicName + "_resized", 1);
 
     ROS_INFO("Running\n");
 }
 
-SingleImageHandler::~SingleImageHandler()
+ImageHandler::~ImageHandler()
 {
 }
 
-void SingleImageHandler::topicCallback(const sensor_msgs::ImageConstPtr& received_image)
+void ImageHandler::topicCallback(const sensor_msgs::ImageConstPtr& received_image)
 {
     cv_bridge::CvImagePtr cvPtr;
     cvPtr = cv_bridge::toCvCopy(received_image, sensor_msgs::image_encodings::BGR8);
        
-    cv::Mat undist;
- 
-    if (_undistord)
-    {
-       cv::undistort(cvPtr->image, undist, _K, _dist);
-    }
-    else
-    {
-       undist = cvPtr->image;
-    }   
+    cv::Mat img = cvPtr->image;
 
-    cv::resize(undist, cvPtr->image, cv::Size(_width, _height),
+    cv::resize(img, cvPtr->image, cv::Size(_width, _height),
                0, 0, cv::INTER_LINEAR);
 
     _pub_img.publish(cvPtr->toImageMsg());
     _pub_info.publish(_infoCam);
 }
 
-void SingleImageHandler::setCameraInfo(const sensor_msgs::CameraInfoConstPtr &received_info)
+void ImageHandler::setCameraInfo(const sensor_msgs::CameraInfoConstPtr &received_info)
 {
     _infoCam = *received_info;
 
