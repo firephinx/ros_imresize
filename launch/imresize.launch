@@ -1,12 +1,11 @@
 <launch>
 
   <node name="ros_imresize" pkg="ros_imresize" type="ros_imresize" output="screen">
-    <param name="input_camera_info_topic" 	value="/pepper_robot/camera/front/camera_info" />
-    <param name="input_camera_topic" 			value="/pepper_local_republisher/pepper_robot/camera/front/image_rect_color" />
-    <param name="width" 						value="320" />
-    <param name="height" 						value="240" />
-    <param name="output_camera_info_topic" 	value="/pepper_local_republisher/pepper_robot/camera/front/camera_info" />
+    <param name="input_camera_topic" 		value="/pepper_local_republisher/pepper_robot/camera/front/image_rect_color" />
+    <param name="width" 					value="320" />
+    <param name="height" 					value="240" />
     <param name="output_camera_topic" 		value="/pepper_local_republisher/pepper_robot/camera/front/image_rect_color_resized" />
+    <param name="output_camera_info_topic" 	value="/pepper_local_republisher/pepper_robot/camera/front/camera_info" />
   </node>
 
 </launch>

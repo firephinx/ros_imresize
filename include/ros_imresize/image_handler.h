@@ -1,15 +1,10 @@
-/*
-* image_handler.h
-* Copyright (c) 2014 PAL Robotics sl. All Rights Reserved
-* Created on: 10/01/2014
-* Author: Jéremie Deray
-*/
-
 #ifndef IMAGE_HANDLER_H_
 #define IMAGE_HANDLER_H_
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+
+#include <cv_bridge/cv_bridge.h>
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -27,32 +22,25 @@ public:
     ImageHandler();
     ~ImageHandler();
 
-    bool isImageReceived();
-
 protected:
 
-    void setCameraInfo(const sensor_msgs::CameraInfoConstPtr&);
-    void topicCallback(const sensor_msgs::ImageConstPtr& received_image);
+    void setCameraInfo();
+    void imageCallback(const sensor_msgs::ImageConstPtr& image_msg);
 
-    sensor_msgs::CameraInfo _infoCam;
+    sensor_msgs::CameraInfo camera_info_msg_;
 
-    ros::NodeHandle _nh;
+    ros::NodeHandle nh_;
 
-    image_transport::ImageTransport _it;
+    image_transport::ImageTransport it_;
 
-    image_transport::Subscriber _sub_img;
-    image_transport::Publisher _pub_img;
+    image_transport::Subscriber image_subscriber_;
+    image_transport::Publisher image_publisher_;
 
-    ros::Publisher _pub_info;
+    ros::Publisher camera_info_publisher_;
 
-    cv::Mat _K;
-    cv::Mat _dist;
+    int width_;
+    int height_;
 
-    bool _infoReceived;
-
-    int _width;
-    int _height;
 };
 
-
-#endif  // IMAGE_HANDLER_H_
+#endif

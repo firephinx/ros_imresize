@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ros_imresize)
 
+## Add support for C++11, supported in ROS Kinetic and newer
+add_definitions(-std=c++11)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -84,7 +87,7 @@ find_package( OpenCV REQUIRED )
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES ${PROJECT_NAME}
+#  LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS cv_bridge image_transport roscpp std_msgs
 #  DEPENDS system_lib
 )
@@ -96,30 +99,32 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
-include_directories(
-  ${catkin_INCLUDE_DIRS} include
+include_directories( include
+  ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
-add_library(resizeimage src/image_handler.cpp
-)
-target_link_libraries(resizeimage ${catkin_LIBRARIES})
+# add_library(${PROJECT_NAME}
+#   src/${PROJECT_NAME}/image_handler.cpp
+# )
 
 ## Declare a cpp executable
-# add_executable(resize_image_node src/resize_image_node.cpp)
+add_executable(im_resize_node src/resize_image.cpp src/image_handler.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(resize_image_node resize_image_generate_messages_cpp)
+add_dependencies(im_resize_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(resize_image_node
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(ros_imresize src/resize_image.cpp)
-target_link_libraries(ros_imresize
-   ${catkin_LIBRARIES} resizeimage
+target_link_libraries(im_resize_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBS}
 )
 
 #############

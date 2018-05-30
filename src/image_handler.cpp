@@ -1,142 +1,83 @@
-/*
-* image_handler.h
-* Copyright (c) 2014 PAL Robotics sl. All Rights Reserved
-* Created on: 10/01/2014
-* Author: Jéremie Deray
-*/
-
 #include "ros_imresize/image_handler.h"
 
-#include <cv_bridge/cv_bridge.h>
-#include <ros/callback_queue.h>
-#include <opencv2/imgproc/imgproc.hpp>
-
-
-////////////////////////////////////////////////////////////////////////////
-////////////                                                    ////////////
-////////////                    ImageHandler                    ////////////
-////////////                                                    ////////////
-////////////////////////////////////////////////////////////////////////////
-
-
-ImageHandler::ImageHandler() :
-_infoReceived(false),
-_nh("/ros_imresize"),
-_width(0),
-_height(0),
-_it(_nh)
+ImageHandler::ImageHandler() : nh_("/ros_imresize"), it_(nh_)
 {
     std::string inputCameraTopicName;
-    std::string inputCameraInfoTopicName;
     std::string outputCameraTopicName;
     std::string outputCameraInfoTopicName;
 
-    ros::Rate rate(10);
+    nh_.param("/ros_imresize/input_camera_topic", inputCameraTopicName, std::string("/pepper_local_republisher/pepper_robot/camera/front/image_rect_color"));
+    nh_.param("/ros_imresize/output_camera_topic", outputCameraTopicName, std::string("/pepper_local_republisher/pepper_robot/camera/front/image_rect_color_resized"));
+    nh_.param("/ros_imresize/output_camera_info_topic", outputCameraInfoTopicName, std::string("/pepper_local_republisher/pepper_robot/camera/front/camera_info"));
+    nh_.param("/ros_imresize/width", width_, (int)640);
+    nh_.param("/ros_imresize/height", height_, (int)480);
 
-    ROS_INFO("Retrieving parameters ...");
+    setCameraInfo();
 
-    while(!(_nh.getParam("input_camera_topic", inputCameraTopicName) && _nh.getParam("input_camera_info_topic", inputCameraInfoTopicName) && 
-            _nh.getParam("output_camera_topic", outputCameraTopicName) && _nh.getParam("output_camera_info_topic", outputCameraInfoTopicName)) && 
-            ros::ok())
-    {
-    	ros::spinOnce();
-    	rate.sleep();
-    }
+    image_subscriber_ = it_.subscribe(inputCameraTopicName, 1, &ImageHandler::imageCallback, this);
 
-    ROS_INFO("Parameters retrieved ...");
+    image_publisher_ = it_.advertise(outputCameraTopicName, 1);
 
-    _nh.param("width", _width, (int)640);
-    _nh.param("height", _height, (int)480);
+    camera_info_publisher_ = nh_.advertise<sensor_msgs::CameraInfo>(outputCameraInfoTopicName, 1);
 
-    ros::Subscriber sub_info = _nh.subscribe(inputCameraInfoTopicName, 1, &ImageHandler::setCameraInfo, this);
-
-    ROS_INFO("WAITING for ROS camera calibration!\n");
-    ros::Rate rate(10);
-    while (!_infoReceived  && ros::ok())
-    {
-        ros::spinOnce();
-        rate.sleep();
-    }
-    ROS_INFO("RECEIVED ROS camera calibration!\n");
-
-    sub_info.shutdown();
-
-    _sub_img = _it.subscribe(inputCameraTopicName, 1, &ImageHandler::topicCallback, this);
-
-    _pub_img = _it.advertise(inputCameraTopicName + "_resized", 1);
-
-    _pub_info = _nh.advertise<sensor_msgs::CameraInfo>(inputCameraInfoTopicName + "_resized", 1);
-
-    ROS_INFO("Running\n");
+    ROS_INFO("Running imresize node.\n");
 }
 
 ImageHandler::~ImageHandler()
 {
 }
 
-void ImageHandler::topicCallback(const sensor_msgs::ImageConstPtr& received_image)
+void ImageHandler::imageCallback(const sensor_msgs::ImageConstPtr& image_msg)
 {
-    cv_bridge::CvImagePtr cvPtr;
-    cvPtr = cv_bridge::toCvCopy(received_image, sensor_msgs::image_encodings::BGR8);
+    cv_bridge::CvImagePtr cvPtr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);
        
-    cv::Mat img = cvPtr->image;
+    cv::Mat image_copy = cvPtr->image;
 
-    cv::resize(img, cvPtr->image, cv::Size(_width, _height),
-               0, 0, cv::INTER_LINEAR);
+    cv::resize(image_copy, cvPtr->image, cv::Size(width_, height_), 0, 0, cv::INTER_LINEAR);
 
-    _pub_img.publish(cvPtr->toImageMsg());
-    _pub_info.publish(_infoCam);
+    image_publisher_.publish(cvPtr->toImageMsg());
+    camera_info_msg_.header = image_msg->header;
+    camera_info_publisher_.publish(camera_info_msg_);
 }
 
-void ImageHandler::setCameraInfo(const sensor_msgs::CameraInfoConstPtr &received_info)
+void ImageHandler::setCameraInfo()
 {
-    _infoCam = *received_info;
-
-    float scale_x = (float)(_width) / (float)(_infoCam.width);
-    float scale_y = (float)(_height) / (float)(_infoCam.height);
-
-    _infoCam.K[0] *= scale_x;
-    _infoCam.K[2] *= scale_x;
-
-    _infoCam.K[4] *= scale_y;
-    _infoCam.K[5] *= scale_y;
-
-    ROS_INFO_STREAM("Previous camera info :\n" << *received_info << "\n");
-
-    if (_undistord)
-    {
-        _K = cv::Mat::eye(3, 3, CV_32F);
-
-        _K.at<float>(0) = _infoCam.K[0];
-        _K.at<float>(2) = _infoCam.K[2];
-
-        _K.at<float>(4) = _infoCam.K[4];
-        _K.at<float>(5) = _infoCam.K[5];
-
-        if (_infoCam.distortion_model == "plumb_bob")
-        {
-            _dist = cv::Mat(_infoCam.D);
-        }
-        else
-        {
-            _dist = cv::Mat::zeros(5, 1, CV_32F);
-            //TODO : check for other model
-        }
-
-        _infoCam.distortion_model = "";
-        _infoCam.D.clear();
-
-        _infoCam.D.clear();
-
-        ROS_INFO_STREAM("Undistortion active with param :\n" << _dist << "\n");
-        ROS_INFO_STREAM("Undistortion active with param :\n" << _K << "\n");
-    }
-
-    _infoCam.width = _width;
-    _infoCam.height = _height;
-
-    ROS_INFO_STREAM("New camera info :\n" << _infoCam << "\n");
-
-    _infoReceived = true;
-
+    camera_info_msg_.height = height_;
+    camera_info_msg_.width = width_;
+    camera_info_msg_.distortion_model = "plumb_bob";
+    camera_info_msg_.D.push_back(-0.0870160932911717);
+    camera_info_msg_.D.push_back(0.128210165050533);
+    camera_info_msg_.D.push_back(0.003379500659424);
+    camera_info_msg_.D.push_back(-0.00106205540818586);
+    camera_info_msg_.D.push_back(0.0);
+    camera_info_msg_.K[0] = 274.139508945831;
+    camera_info_msg_.K[1] = 0.0;
+    camera_info_msg_.K[2] = 141.184472810944;
+    camera_info_msg_.K[3] = 0.0;
+    camera_info_msg_.K[4] = 275.741846757374;
+    camera_info_msg_.K[5] = 106.693773654172;
+    camera_info_msg_.K[6] = 0.0;
+    camera_info_msg_.K[7] = 0.0;
+    camera_info_msg_.K[8] = 1.0;
+    camera_info_msg_.R[0] = 1.0;
+    camera_info_msg_.R[1] = 0.0;
+    camera_info_msg_.R[2] = 0.0;
+    camera_info_msg_.R[3] = 0.0;
+    camera_info_msg_.R[4] = 1.0;
+    camera_info_msg_.R[5] = 0.0;
+    camera_info_msg_.R[6] = 0.0;
+    camera_info_msg_.R[7] = 0.0;
+    camera_info_msg_.R[8] = 1.0;
+    camera_info_msg_.P[0] = 272.423675537109;
+    camera_info_msg_.P[1] = 0.0;
+    camera_info_msg_.P[2] = 141.131930791285;
+    camera_info_msg_.P[3] = 0.0;
+    camera_info_msg_.P[4] = 0.0;
+    camera_info_msg_.P[5] = 273.515747070312;
+    camera_info_msg_.P[6] = 107.391746054313;
+    camera_info_msg_.P[7] = 0.0;
+    camera_info_msg_.P[8] = 0.0;
+    camera_info_msg_.P[9] = 0.0;
+    camera_info_msg_.P[10] = 1.0;
+    camera_info_msg_.P[11] = 0.0;
 }
