@@ -110,19 +110,19 @@ include_directories( include
 # )
 
 ## Declare a cpp executable
-add_executable(im_resize_node src/resize_image.cpp src/image_handler.cpp)
+add_executable(imresize_node src/resize_image.cpp src/image_handler.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(resize_image_node resize_image_generate_messages_cpp)
-add_dependencies(im_resize_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(imresize_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(resize_image_node
 #   ${catkin_LIBRARIES}
 # )
 
-target_link_libraries(im_resize_node
+target_link_libraries(imresize_node
    ${catkin_LIBRARIES}
    ${OpenCV_LIBS}
 )

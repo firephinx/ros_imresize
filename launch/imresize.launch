@@ -1,6 +1,6 @@
 <launch>
 
-  <node name="ros_imresize" pkg="ros_imresize" type="ros_imresize" output="screen">
+  <node name="ros_imresize" pkg="ros_imresize" type="imresize_node" output="screen">
     <param name="input_camera_topic" 		value="/pepper_local_republisher/pepper_robot/camera/front/image_rect_color" />
     <param name="width" 					value="320" />
     <param name="height" 					value="240" />
